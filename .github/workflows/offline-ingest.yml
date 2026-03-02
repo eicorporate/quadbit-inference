@@ -35,7 +35,7 @@ jobs:
         run: |
           mkdir -p out/offline_batch
           python tools/offline_ingest.py \
-            --input config/seed_urls.txt \
+            --input config/master_ingestion_urls.txt \
             --out out/offline_batch \
             --max-urls "${{ github.event.inputs.max_urls }}" \
             --shard-size "${{ github.event.inputs.shard_size }}"
