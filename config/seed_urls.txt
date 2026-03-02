@@ -141,3 +141,17 @@ https://github.com/togethercomputer/RedPajama-Data
 https://huggingface.co/datasets/togethercomputer/RedPajama-Data-V2
 https://huggingface.co/common-pile
 https://laion.ai
+
+# Public Assistance / Medicare / Medicaid / Benefits
+https://medicare.gov
+https://medicaid.gov
+https://cms.gov
+https://healthcare.gov
+https://benefits.gov
+https://ssa.gov
+https://acf.hhs.gov
+https://fns.usda.gov
+https://hud.gov
+https://irs.gov/credits-deductions/individuals/earned-income-tax-credit
+https://usa.gov/benefits
+https://va.gov
