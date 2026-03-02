@@ -204,7 +204,7 @@ def main():
                         "trust_weight": 0.55,
                         "fetched_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                         "accuracy_caveat": ACCURACY_CAVEAT,
-                        "content": text[:6000],
+                        "content": text[:20000],
                     }
                     raw_records.append(rec)
 

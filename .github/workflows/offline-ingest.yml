@@ -16,19 +16,19 @@ on:
       shard_size:
         description: "Records per shard"
         required: false
-        default: "200"
+        default: "1000"
       max_depth:
         description: "Subpage crawl depth"
         required: false
-        default: "2"
+        default: "3"
       max_pages_per_domain:
         description: "Safety cap per domain"
         required: false
-        default: "100"
+        default: "400"
       max_total_pages:
         description: "Global safety cap"
         required: false
-        default: "5000"
+        default: "120000"
 
 jobs:
   ingest:
@@ -58,10 +58,10 @@ jobs:
           MAX_PER_DOMAIN="${{ github.event.inputs.max_pages_per_domain }}"
           MAX_TOTAL="${{ github.event.inputs.max_total_pages }}"
           if [ -z "$MAX_URLS" ]; then MAX_URLS="0"; fi
-          if [ -z "$SHARD_SIZE" ]; then SHARD_SIZE="200"; fi
-          if [ -z "$MAX_DEPTH" ]; then MAX_DEPTH="2"; fi
-          if [ -z "$MAX_PER_DOMAIN" ]; then MAX_PER_DOMAIN="100"; fi
-          if [ -z "$MAX_TOTAL" ]; then MAX_TOTAL="5000"; fi
+          if [ -z "$SHARD_SIZE" ]; then SHARD_SIZE="1000"; fi
+          if [ -z "$MAX_DEPTH" ]; then MAX_DEPTH="3"; fi
+          if [ -z "$MAX_PER_DOMAIN" ]; then MAX_PER_DOMAIN="400"; fi
+          if [ -z "$MAX_TOTAL" ]; then MAX_TOTAL="120000"; fi
           python tools/offline_ingest.py \
             --input config/master_ingestion_urls.txt \
             --out out/offline_batch \
