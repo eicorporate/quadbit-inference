@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-03-01T22:58:33Z",
+  "server": "new-instance",
+  "results": [
+    {
+      "endpoint": "consciousness/query",
+      "queries": 1000,
+      "successes": 1000,
+      "wall_seconds": 29.55,
+      "queries_per_sec": 33.8,
+      "p50_ms": 27.46,
+      "p99_ms": 80.17,
+      "avg_ms": 29.54,
+      "min_ms": 24.32,
+      "max_ms": 165.93
+    },
+    {
+      "endpoint": "health",
+      "queries": 1000,
+      "successes": 1000,
+      "wall_seconds": 13.53,
+      "queries_per_sec": 73.9,
+      "p50_ms": 12.2,
+      "p99_ms": 31.33,
+      "avg_ms": 13.52,
+      "min_ms": 10.36,
+      "max_ms": 67.89
+    },
+    {
+      "endpoint": "memory/store",
+      "queries": 500,
+      "successes": 500,
+      "wall_seconds": 2.25,
+      "queries_per_sec": 222.0,
+      "p50_ms": 4.06,
+      "p99_ms": 10.94,
+      "avg_ms": 4.5,
+      "min_ms": 2.86,
+      "max_ms": 14.83
+    },
+    {
+      "endpoint": "search",
+      "queries": 500,
+      "successes": 500,
+      "wall_seconds": 15.3,
+      "queries_per_sec": 32.7,
+      "p50_ms": 28.41,
+      "p99_ms": 78.04,
+      "avg_ms": 30.61,
+      "min_ms": 24.4,
+      "max_ms": 98.86
+    }
+  ]
+}
