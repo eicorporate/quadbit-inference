@@ -123,6 +123,60 @@ def chunked(seq, n):
         yield seq[i:i + n]
 
 
+def discover_sitemaps(scope: str, timeout: int = 10, max_urls: int = 2000):
+    """
+    Try to find sitemap URLs for a given domain (scope) via common locations and robots.txt.
+    Returns a set of canonicalized URLs limited by max_urls.
+    """
+    candidates = [
+        f"https://{scope}/sitemap.xml",
+        f"https://{scope}/sitemap_index.xml",
+        f"http://{scope}/sitemap.xml",
+        f"http://{scope}/sitemap_index.xml",
+        f"https://{scope}/robots.txt",
+        f"http://{scope}/robots.txt",
+    ]
+
+    sitemap_urls = set()
+
+    for c in candidates:
+        try:
+            r = requests.get(c, timeout=timeout, headers={"User-Agent": "QuadbitOfflineIngest/1.0"})
+            if r.status_code >= 400:
+                continue
+            url_lower = c.lower()
+            if url_lower.endswith("robots.txt"):
+                for line in r.text.splitlines():
+                    if line.lower().startswith("sitemap:"):
+                        sm = line.split(":", 1)[1].strip()
+                        try:
+                            sm_c = canonicalize_url(sm)
+                            if in_domain(sm_c, scope):
+                                sitemap_urls.add(sm_c)
+                        except Exception:
+                            continue
+            else:
+                # Basic XML <loc> extraction
+                for loc in re.findall(r"(?is)<loc>\s*([^<]+?)\s*</loc>", r.text or ""):
+                    try:
+                        sm_c = canonicalize_url(loc)
+                        if in_domain(sm_c, scope):
+                            sitemap_urls.add(sm_c)
+                    except Exception:
+                        continue
+        except Exception:
+            continue
+
+        if len(sitemap_urls) >= max_urls:
+            break
+
+    # Trim to max_urls
+    if len(sitemap_urls) > max_urls:
+        sitemap_urls = set(list(sitemap_urls)[:max_urls])
+
+    return sitemap_urls
+
+
 def main():
     ap = argparse.ArgumentParser(description="Offline ingestion builder (off-server)")
     ap.add_argument("--input", required=True, help="Input URL list file")
@@ -155,11 +209,21 @@ def main():
 
     pages_per_domain = defaultdict(int)
     total_pages = 0
+    depth_counts = defaultdict(int)
+    max_depth_observed = 0
+    deepest_urls = []  # list of (depth, url)
+    sitemap_total = 0
+    sitemap_used = []
 
     for seed in urls:
         seed_url = canonicalize_url(seed)
         scope = domain_scope(seed_url)
         q = deque([(seed_url, 0)])
+        # Prefill with sitemap URLs if available
+        for sm_url in discover_sitemaps(scope, timeout=args.timeout):
+            sitemap_total += 1
+            sitemap_used.append(sm_url)
+            q.append((sm_url, 0))
         local_seen = set()
 
         while q:
@@ -205,8 +269,15 @@ def main():
                         "fetched_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                         "accuracy_caveat": ACCURACY_CAVEAT,
                         "content": text[:20000],
+                        "crawl_depth": depth,
                     }
                     raw_records.append(rec)
+
+                depth_counts[depth] += 1
+                if depth > max_depth_observed:
+                    max_depth_observed = depth
+                if depth >= max_depth_observed:
+                    deepest_urls.append((depth, url))
 
                 pages_per_domain[scope] += 1
                 total_pages += 1
@@ -235,6 +306,10 @@ def main():
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
         shards.append(sp.name)
 
+    # Depth diagnostics
+    depth_counts_sorted = {str(k): depth_counts[k] for k in sorted(depth_counts.keys())}
+    deepest_urls_sorted = sorted(deepest_urls, key=lambda x: (-x[0], x[1]))[:50]
+
     manifest = {
         "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "input_count": len(urls),
@@ -243,11 +318,16 @@ def main():
         "total_pages_fetched": total_pages,
         "max_pages_per_domain": args.max_pages_per_domain,
         "max_total_pages": args.max_total_pages,
-        "max_depth": args.max_depth,
+        "max_depth_config": args.max_depth,
+        "max_depth_observed": max_depth_observed,
         "min_words": args.min_words,
         "skipped_url_duplicates": skipped_url_dup,
         "skipped_content_duplicates": skipped_content_dup,
         "fetch_errors": fetch_errors,
+        "sitemap_urls_discovered": sitemap_total,
+        "sample_sitemaps_used": sitemap_used[:25],
+        "depth_counts": depth_counts_sorted,
+        "deepest_urls_sample": [{"depth": d, "url": u} for d, u in deepest_urls_sorted],
         "shard_size": args.shard_size,
         "shards": shards,
         "duration_seconds": round(time.time() - t0, 2),
