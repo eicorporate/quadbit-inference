@@ -1,6 +1,10 @@
 name: quadbit-offline-ingest-wikileaks
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/offline-ingest-wikileaks.yml"
   workflow_dispatch:
     inputs: {}
 
