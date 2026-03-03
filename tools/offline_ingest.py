@@ -189,6 +189,8 @@ def main():
     ap.add_argument("--max-pages-per-domain", type=int, default=400)
     ap.add_argument("--max-total-pages", type=int, default=120000)
     ap.add_argument("--min-words", type=int, default=100)
+    ap.add_argument("--push-endpoint", default="", help="Optional memory/store endpoint for live push")
+    ap.add_argument("--push-timeout", type=int, default=20)
     args = ap.parse_args()
 
     out = Path(args.out)
@@ -206,6 +208,8 @@ def main():
     skipped_url_dup = 0
     skipped_content_dup = 0
     fetch_errors = 0
+    push_ok = 0
+    push_err = 0
 
     pages_per_domain = defaultdict(int)
     total_pages = 0
@@ -273,6 +277,32 @@ def main():
                     }
                     raw_records.append(rec)
 
+                    if args.push_endpoint:
+                        payload = {
+                            "content": rec.get("content", ""),
+                            "source": f"offline_ingest::{scope}",
+                            "metadata": {
+                                "source_url": rec.get("source_url"),
+                                "source_domain": rec.get("source_domain"),
+                                "url_hash": rec.get("url_hash"),
+                                "content_hash": rec.get("content_hash"),
+                                "coords_11d": rec.get("coords_11d"),
+                                "keywords": rec.get("keywords"),
+                                "trust_weight": rec.get("trust_weight"),
+                                "fetched_utc": rec.get("fetched_utc"),
+                                "accuracy_caveat": rec.get("accuracy_caveat"),
+                                "crawl_depth": rec.get("crawl_depth"),
+                            },
+                        }
+                        try:
+                            pr = requests.post(args.push_endpoint, json=payload, timeout=args.push_timeout)
+                            if pr.status_code == 200:
+                                push_ok += 1
+                            else:
+                                push_err += 1
+                        except Exception:
+                            push_err += 1
+
                 depth_counts[depth] += 1
                 if depth > max_depth_observed:
                     max_depth_observed = depth
@@ -324,6 +354,9 @@ def main():
         "skipped_url_duplicates": skipped_url_dup,
         "skipped_content_duplicates": skipped_content_dup,
         "fetch_errors": fetch_errors,
+        "push_endpoint": args.push_endpoint,
+        "push_ok": push_ok,
+        "push_err": push_err,
         "sitemap_urls_discovered": sitemap_total,
         "sample_sitemaps_used": sitemap_used[:25],
         "depth_counts": depth_counts_sorted,

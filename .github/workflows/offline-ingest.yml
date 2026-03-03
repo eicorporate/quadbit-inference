@@ -95,14 +95,8 @@ jobs:
             --max-depth "$MAX_DEPTH" \
             --max-pages-per-domain "$MAX_PER_DOMAIN" \
             --max-total-pages "$MAX_TOTAL" \
-            --crawl-subpages
-
-      - name: Push shard into torus (live learn)
-        run: |
-          python tools/push_shard_to_torus.py \
-            --shard-dir out/offline_batch/shard_${{ matrix.shard }} \
-            --endpoint "${{ env.TORUS_INGEST_ENDPOINT }}" \
-            --sleep-ms 5
+            --crawl-subpages \
+            --push-endpoint "${{ env.TORUS_INGEST_ENDPOINT }}"
 
       - name: Upload shard artifact
         uses: actions/upload-artifact@v4
