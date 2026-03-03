@@ -41,6 +41,7 @@ env:
   DEFAULT_MAX_PER_DOMAIN: 300
   DEFAULT_MAX_TOTAL_PAGES: 15000
   DEFAULT_MAX_URLS: 0
+  TORUS_INGEST_ENDPOINT: https://myjeffrey.com/api/memory/store
 
 jobs:
   ingest:
@@ -95,6 +96,13 @@ jobs:
             --max-pages-per-domain "$MAX_PER_DOMAIN" \
             --max-total-pages "$MAX_TOTAL" \
             --crawl-subpages
+
+      - name: Push shard into torus (live learn)
+        run: |
+          python tools/push_shard_to_torus.py \
+            --shard-dir out/offline_batch/shard_${{ matrix.shard }} \
+            --endpoint "${{ env.TORUS_INGEST_ENDPOINT }}" \
+            --sleep-ms 5
 
       - name: Upload shard artifact
         uses: actions/upload-artifact@v4
