@@ -1,0 +1,49 @@
+name: quadbit-offline-ingest-wikileaks
+
+on:
+  workflow_dispatch:
+    inputs: {}
+
+jobs:
+  ingest-wikileaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Prepare Wikileaks seed
+        run: |
+          mkdir -p seeds
+          echo "https://wikileaks.org" > seeds/wikileaks.txt
+          cat seeds/wikileaks.txt
+
+      - name: Run offline ingest (Wikileaks deep)
+        run: |
+          mkdir -p out/offline_batch_wl
+          python tools/offline_ingest.py \
+            --input seeds/wikileaks.txt \
+            --out out/offline_batch_wl \
+            --max-urls 0 \
+            --shard-size 1000 \
+            --max-depth 6 \
+            --max-pages-per-domain 1200 \
+            --max-total-pages 20000 \
+            --crawl-subpages
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quadbit-offline-batch-wikileaks
+          path: out/offline_batch_wl/
