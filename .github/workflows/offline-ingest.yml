@@ -13,6 +13,10 @@ on:
         description: "How many parallel shards"
         required: false
         default: "12"
+      max_parallel:
+        description: "How many shard jobs to run concurrently"
+        required: false
+        default: "24"
       max_urls:
         description: "Max seed URLs to process (0 = all)"
         required: false
@@ -36,6 +40,7 @@ on:
 
 env:
   DEFAULT_SHARD_TOTAL: 12
+  DEFAULT_MAX_PARALLEL: 24
   DEFAULT_SHARD_SIZE: 800
   DEFAULT_MAX_DEPTH: 3
   DEFAULT_MAX_PER_DOMAIN: 300
@@ -44,13 +49,36 @@ env:
   TORUS_INGEST_ENDPOINT: https://myjeffrey.com/api/memory/store
 
 jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      shard_matrix: ${{ steps.mk.outputs.shard_matrix }}
+    steps:
+      - name: Build shard matrix
+        id: mk
+        run: |
+          SHARD_TOTAL="${{ github.event.inputs.shard_total || env.DEFAULT_SHARD_TOTAL }}"
+          python3 - <<'PY'
+          import json, os
+          total = int(os.environ.get('SHARD_TOTAL', '12'))
+          total = max(1, min(total, 64))
+          arr = list(range(total))
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+              f.write('shard_matrix=' + json.dumps(arr) + '\n')
+          print('matrix_shards=', arr)
+          PY
+        env:
+          SHARD_TOTAL: ${{ github.event.inputs.shard_total || env.DEFAULT_SHARD_TOTAL }}
+
   ingest:
+    needs: build-matrix
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
       fail-fast: false
+      max-parallel: 24
       matrix:
-        shard: [0,1,2,3,4,5,6,7,8,9,10,11]
+        shard: ${{ fromJson(needs.build-matrix.outputs.shard_matrix) }}
 
     steps:
       - name: Checkout
