@@ -189,6 +189,7 @@ def main():
     ap.add_argument("--max-pages-per-domain", type=int, default=400)
     ap.add_argument("--max-total-pages", type=int, default=120000)
     ap.add_argument("--min-words", type=int, default=100)
+    ap.add_argument("--trust-weight", type=float, default=0.01)
     ap.add_argument("--push-endpoint", default="", help="Optional memory/store endpoint for live push")
     ap.add_argument("--push-timeout", type=int, default=20)
     args = ap.parse_args()
@@ -269,7 +270,7 @@ def main():
                         "content_hash": ch,
                         "coords_11d": text_to_11d(text),
                         "keywords": keywords(text),
-                        "trust_weight": 0.55,
+                        "trust_weight": args.trust_weight,
                         "fetched_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                         "accuracy_caveat": ACCURACY_CAVEAT,
                         "content": text[:20000],
