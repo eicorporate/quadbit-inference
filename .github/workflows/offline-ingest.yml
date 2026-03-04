@@ -12,11 +12,11 @@ on:
       shard_total:
         description: "How many parallel shards"
         required: false
-        default: "12"
+        default: "32"
       max_parallel:
         description: "How many shard jobs to run concurrently"
         required: false
-        default: "24"
+        default: "32"
       max_urls:
         description: "Max seed URLs to process (0 = all)"
         required: false
@@ -28,23 +28,23 @@ on:
       max_depth:
         description: "Subpage crawl depth"
         required: false
-        default: "3"
+        default: "4"
       max_pages_per_domain:
         description: "Safety cap per domain"
         required: false
-        default: "300"
+        default: "500"
       max_total_pages:
         description: "Safety cap per shard"
         required: false
-        default: "15000"
+        default: "30000"
 
 env:
-  DEFAULT_SHARD_TOTAL: 12
-  DEFAULT_MAX_PARALLEL: 24
+  DEFAULT_SHARD_TOTAL: 32
+  DEFAULT_MAX_PARALLEL: 32
   DEFAULT_SHARD_SIZE: 800
-  DEFAULT_MAX_DEPTH: 3
-  DEFAULT_MAX_PER_DOMAIN: 300
-  DEFAULT_MAX_TOTAL_PAGES: 15000
+  DEFAULT_MAX_DEPTH: 4
+  DEFAULT_MAX_PER_DOMAIN: 500
+  DEFAULT_MAX_TOTAL_PAGES: 30000
   DEFAULT_MAX_URLS: 0
   TORUS_INGEST_ENDPOINT: https://myjeffrey.com/api/memory/store
 
@@ -76,7 +76,7 @@ jobs:
     timeout-minutes: 240
     strategy:
       fail-fast: false
-      max-parallel: 24
+      max-parallel: 32
       matrix:
         shard: ${{ fromJson(needs.build-matrix.outputs.shard_matrix) }}
 
@@ -98,7 +98,12 @@ jobs:
         run: |
           mkdir -p out/offline_batch tmp_seeds
           SHARD_TOTAL="${{ github.event.inputs.shard_total || env.DEFAULT_SHARD_TOTAL }}"
-          split -n l/${SHARD_TOTAL} -d config/master_ingestion_urls.txt tmp_seeds/seed_
+          INPUT_FILE="config/master_ingestion_urls_combined.txt"
+          if [ ! -f "$INPUT_FILE" ]; then
+            INPUT_FILE="config/master_ingestion_urls.txt"
+          fi
+          echo "Using input file: $INPUT_FILE"
+          split -n l/${SHARD_TOTAL} -d "$INPUT_FILE" tmp_seeds/seed_
           shard_file=$(printf "tmp_seeds/seed_%02d" ${{ matrix.shard }})
           if [ ! -s "$shard_file" ]; then
             echo "Shard ${{ matrix.shard }} is empty; creating placeholder." >&2
