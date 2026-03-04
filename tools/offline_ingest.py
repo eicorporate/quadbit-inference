@@ -5,6 +5,7 @@ import hashlib
 import html
 import json
 import math
+import os
 import re
 import time
 from collections import defaultdict
@@ -123,6 +124,22 @@ def chunked(seq, n):
         yield seq[i:i + n]
 
 
+def save_checkpoint(path: Path, state: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def load_checkpoint(path: Path):
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 def discover_sitemaps(scope: str, timeout: int = 10, max_urls: int = 2000):
     """
     Try to find sitemap URLs for a given domain (scope) via common locations and robots.txt.
@@ -192,6 +209,8 @@ def main():
     ap.add_argument("--trust-weight", type=float, default=0.01)
     ap.add_argument("--push-endpoint", default="", help="Optional memory/store endpoint for live push")
     ap.add_argument("--push-timeout", type=int, default=20)
+    ap.add_argument("--checkpoint-file", default="", help="Optional checkpoint file for resume")
+    ap.add_argument("--checkpoint-every", type=int, default=200, help="Save checkpoint every N processed URLs")
     args = ap.parse_args()
 
     out = Path(args.out)
@@ -205,7 +224,8 @@ def main():
     seen_url = set()
     seen_content = set()
 
-    raw_records = []
+    records_file = out / "ingest_records.jsonl"
+    records_written = 0
     skipped_url_dup = 0
     skipped_content_dup = 0
     fetch_errors = 0
@@ -220,22 +240,71 @@ def main():
     sitemap_total = 0
     sitemap_used = []
 
-    for seed in urls:
-        seed_url = canonicalize_url(seed)
-        scope = domain_scope(seed_url)
-        q = deque([(seed_url, 0)])
-        # Prefill with sitemap URLs if available
-        for sm_url in discover_sitemaps(scope, timeout=args.timeout):
-            sitemap_total += 1
-            sitemap_used.append(sm_url)
-            q.append((sm_url, 0))
-        local_seen = set()
+    checkpoint_path = Path(args.checkpoint_file) if args.checkpoint_file else None
+    checkpoint = load_checkpoint(checkpoint_path) if checkpoint_path else None
+
+    # If we have previous in-flight records, recover seen hashes and counters.
+    if records_file.exists():
+        with records_file.open("r", encoding="utf-8") as rf:
+            for line in rf:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                uh = rec.get("url_hash")
+                ch = rec.get("content_hash")
+                if uh:
+                    seen_url.add(uh)
+                if ch:
+                    seen_content.add(ch)
+                records_written += 1
+
+    seed_idx = 0
+    current_scope = None
+    q = deque()
+    queued_set = set()
+
+    if checkpoint:
+        seed_idx = int(checkpoint.get("seed_idx", 0))
+        current_scope = checkpoint.get("current_scope")
+        q = deque((u, int(d)) for u, d in checkpoint.get("queue", []))
+        queued_set = set(u for u, _ in q)
+        total_pages = int(checkpoint.get("total_pages", total_pages))
+        skipped_url_dup = int(checkpoint.get("skipped_url_dup", skipped_url_dup))
+        skipped_content_dup = int(checkpoint.get("skipped_content_dup", skipped_content_dup))
+        fetch_errors = int(checkpoint.get("fetch_errors", fetch_errors))
+        push_ok = int(checkpoint.get("push_ok", push_ok))
+        push_err = int(checkpoint.get("push_err", push_err))
+        max_depth_observed = int(checkpoint.get("max_depth_observed", max_depth_observed))
+        pages_per_domain.update(checkpoint.get("pages_per_domain", {}))
+        depth_counts.update({int(k): v for k, v in checkpoint.get("depth_counts", {}).items()})
+        sitemap_total = int(checkpoint.get("sitemap_total", sitemap_total))
+        sitemap_used = checkpoint.get("sitemap_used", sitemap_used)
+
+    processed_since_checkpoint = 0
+
+    while seed_idx < len(urls):
+        if not q:
+            seed_url = canonicalize_url(urls[seed_idx])
+            current_scope = domain_scope(seed_url)
+            q = deque([(seed_url, 0)])
+            queued_set = {seed_url}
+            for sm_url in discover_sitemaps(current_scope, timeout=args.timeout):
+                sitemap_total += 1
+                sitemap_used.append(sm_url)
+                if sm_url not in queued_set:
+                    q.append((sm_url, 0))
+                    queued_set.add(sm_url)
 
         while q:
             url, depth = q.popleft()
+            queued_set.discard(url)
             if total_pages >= args.max_total_pages:
                 break
-            if pages_per_domain[scope] >= args.max_pages_per_domain:
+            if pages_per_domain[current_scope] >= args.max_pages_per_domain:
                 break
 
             uh = hashlib.sha256(url.encode("utf-8")).hexdigest()
@@ -265,7 +334,7 @@ def main():
                     seen_content.add(ch)
                     rec = {
                         "source_url": url,
-                        "source_domain": scope,
+                        "source_domain": current_scope,
                         "url_hash": uh,
                         "content_hash": ch,
                         "coords_11d": text_to_11d(text),
@@ -276,12 +345,14 @@ def main():
                         "content": text[:20000],
                         "crawl_depth": depth,
                     }
-                    raw_records.append(rec)
+                    with records_file.open("a", encoding="utf-8") as rf:
+                        rf.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                    records_written += 1
 
                     if args.push_endpoint:
                         payload = {
                             "content": rec.get("content", ""),
-                            "source": f"offline_ingest::{scope}",
+                            "source": f"offline_ingest::{current_scope}",
                             "metadata": {
                                 "source_url": rec.get("source_url"),
                                 "source_domain": rec.get("source_domain"),
@@ -310,32 +381,76 @@ def main():
                 if depth >= max_depth_observed:
                     deepest_urls.append((depth, url))
 
-                pages_per_domain[scope] += 1
+                pages_per_domain[current_scope] += 1
                 total_pages += 1
+                processed_since_checkpoint += 1
 
                 if args.crawl_subpages and depth < args.max_depth:
                     for nxt in extract_links(url, body):
-                        if not in_domain(nxt, scope):
+                        if not in_domain(nxt, current_scope):
                             continue
-                        if nxt in local_seen:
+                        if nxt in queued_set:
                             continue
-                        local_seen.add(nxt)
+                        queued_set.add(nxt)
                         q.append((nxt, depth + 1))
 
             except Exception:
                 fetch_errors += 1
 
+            if checkpoint_path and processed_since_checkpoint >= max(1, args.checkpoint_every):
+                state = {
+                    "seed_idx": seed_idx,
+                    "current_scope": current_scope,
+                    "queue": list(q),
+                    "total_pages": total_pages,
+                    "skipped_url_dup": skipped_url_dup,
+                    "skipped_content_dup": skipped_content_dup,
+                    "fetch_errors": fetch_errors,
+                    "push_ok": push_ok,
+                    "push_err": push_err,
+                    "max_depth_observed": max_depth_observed,
+                    "pages_per_domain": dict(pages_per_domain),
+                    "depth_counts": {str(k): v for k, v in depth_counts.items()},
+                    "sitemap_total": sitemap_total,
+                    "sitemap_used": sitemap_used[-500:],
+                }
+                save_checkpoint(checkpoint_path, state)
+                processed_since_checkpoint = 0
+
         if total_pages >= args.max_total_pages:
             break
+        if pages_per_domain[current_scope] >= args.max_pages_per_domain:
+            q.clear()
+        if not q:
+            seed_idx += 1
 
-    # write shards
+    # write shards from persistent record file
     shards = []
-    for i, block in enumerate(chunked(raw_records, args.shard_size), start=1):
-        sp = out / f"ingest_shard_{i:05d}.jsonl"
-        with sp.open("w", encoding="utf-8") as f:
-            for r in block:
-                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    for old in out.glob("ingest_shard_*.jsonl"):
+        old.unlink(missing_ok=True)
+    if records_file.exists():
+        shard_idx = 1
+        line_idx = 0
+        sp = out / f"ingest_shard_{shard_idx:05d}.jsonl"
+        wf = sp.open("w", encoding="utf-8")
         shards.append(sp.name)
+        with records_file.open("r", encoding="utf-8") as rf:
+            for line in rf:
+                if not line.strip():
+                    continue
+                if line_idx and line_idx % args.shard_size == 0:
+                    wf.close()
+                    shard_idx += 1
+                    sp = out / f"ingest_shard_{shard_idx:05d}.jsonl"
+                    wf = sp.open("w", encoding="utf-8")
+                    shards.append(sp.name)
+                wf.write(line)
+                line_idx += 1
+        wf.close()
+        if line_idx == 0:
+            # remove empty shard file if no records
+            Path(out / shards[0]).unlink(missing_ok=True)
+            shards = []
 
     # Depth diagnostics
     depth_counts_sorted = {str(k): depth_counts[k] for k in sorted(depth_counts.keys())}
@@ -345,7 +460,7 @@ def main():
         "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "input_count": len(urls),
         "unique_url_count": len(seen_url),
-        "records_written": len(raw_records),
+        "records_written": records_written,
         "total_pages_fetched": total_pages,
         "max_pages_per_domain": args.max_pages_per_domain,
         "max_total_pages": args.max_total_pages,
@@ -365,8 +480,12 @@ def main():
         "shard_size": args.shard_size,
         "shards": shards,
         "duration_seconds": round(time.time() - t0, 2),
+        "checkpoint_file": str(checkpoint_path) if checkpoint_path else "",
     }
     (out / "ingest_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    if checkpoint_path and checkpoint_path.exists():
+        checkpoint_path.unlink(missing_ok=True)
 
     print(json.dumps(manifest, indent=2))
 

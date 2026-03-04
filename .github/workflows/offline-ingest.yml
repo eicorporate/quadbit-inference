@@ -84,6 +84,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Restore shard checkpoint cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            out/offline_batch/shard_${{ matrix.shard }}/
+            checkpoints/shard_${{ matrix.shard }}/
+          key: offingest-shard-${{ matrix.shard }}-${{ github.run_id }}
+          restore-keys: |
+            offingest-shard-${{ matrix.shard }}-
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -96,7 +106,7 @@ jobs:
 
       - name: Prepare shard inputs
         run: |
-          mkdir -p out/offline_batch tmp_seeds
+          mkdir -p out/offline_batch tmp_seeds checkpoints/shard_${{ matrix.shard }}
           SHARD_TOTAL="${{ github.event.inputs.shard_total || env.DEFAULT_SHARD_TOTAL }}"
           INPUT_FILE="config/master_ingestion_urls_combined.txt"
           if [ ! -f "$INPUT_FILE" ]; then
@@ -110,6 +120,7 @@ jobs:
             echo "" > "$shard_file"
           fi
           echo "SHARD_FILE=$shard_file" >> $GITHUB_ENV
+          echo "CHECKPOINT_FILE=checkpoints/shard_${{ matrix.shard }}/checkpoint.json" >> $GITHUB_ENV
 
       - name: Run offline ingest (shard ${{ matrix.shard }})
         run: |
@@ -129,7 +140,17 @@ jobs:
             --max-pages-per-domain "$MAX_PER_DOMAIN" \
             --max-total-pages "$MAX_TOTAL" \
             --crawl-subpages \
-            --push-endpoint "${{ env.TORUS_INGEST_ENDPOINT }}"
+            --push-endpoint "${{ env.TORUS_INGEST_ENDPOINT }}" \
+            --checkpoint-file "$CHECKPOINT_FILE"
+
+      - name: Save shard checkpoint cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            out/offline_batch/shard_${{ matrix.shard }}/
+            checkpoints/shard_${{ matrix.shard }}/
+          key: offingest-shard-${{ matrix.shard }}-${{ github.run_id }}
 
       - name: Upload shard artifact
         uses: actions/upload-artifact@v4
