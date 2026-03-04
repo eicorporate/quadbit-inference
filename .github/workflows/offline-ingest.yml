@@ -1,5 +1,9 @@
 name: quadbit-offline-ingest
 
+concurrency:
+  group: quadbit-offline-ingest-main
+  cancel-in-progress: true
+
 on:
   push:
     branches: ["main"]
