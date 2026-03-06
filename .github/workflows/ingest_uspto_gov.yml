@@ -2,6 +2,9 @@ name: MAX INGEST 6-HR - uspto.gov
 
 on:
   push:
+    branches:
+      - main
+  push:
   workflow_dispatch:
   push:
     branches: ["main"]
