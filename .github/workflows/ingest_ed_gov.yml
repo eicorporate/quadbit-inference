@@ -30,7 +30,7 @@ jobs:
           timeout 21300 python3 tools/offline_ingest.py --target "ed.gov" --mode max_depth
           
       - name: Upload Ingest Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ingest-data-ed.gov
           path: output/*.bin
