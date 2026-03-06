@@ -33,8 +33,12 @@ jobs:
           echo "Timeout set to 5 hours 55 minutes to allow graceful exit..."
           mkdir -p output
           echo "https://useofforceproject.org" > target.txt
-          timeout 21300 python3 tools/offline_ingest.py --input target.txt --out output/ingest_useofforceproject_org.bin --crawl-subpages --max-depth 20 --max-total-pages 1000000 --max-pages-per-domain 500000 || true
+          timeout 21300 python3 tools/offline_ingest.py --input target.txt --out output/ingest_useofforceproject_org.bin --crawl-subpages --max-depth 20 --max-total-pages 1000000 --max-pages-per-domain 500000 --push-endpoint "https://myjeffrey.com/api/memory/store" || true
           
+      - name: Push Remaining Shards to Torus
+        run: |
+          python3 tools/push_shard_to_torus.py --shard-dir output/ --endpoint "https://myjeffrey.com/api/memory/store" || true
+
       - name: Upload Ingest Artifacts
         uses: actions/upload-artifact@v4
         with:
