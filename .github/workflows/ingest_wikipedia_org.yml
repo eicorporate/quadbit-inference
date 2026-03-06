@@ -1,0 +1,36 @@
+name: MAX INGEST 6-HR - wikipedia.org
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *' # Can be adjusted or triggered via API
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # Max out the 6-hour limit exactly
+    
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: 6-Hour Deep Crawl & Ingest to Torus (wikipedia.org)
+        run: |
+          echo "Starting maximum depth crawl of wikipedia.org"
+          echo "Timeout set to 5 hours 55 minutes to allow graceful exit..."
+          # Running the crawler with a 21300 second timeout (5.9 hours)
+          timeout 21300 python3 tools/offline_ingest.py --target "wikipedia.org" --mode max_depth
+          
+      - name: Upload Ingest Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ingest-data-wikipedia.org
+          path: output/*.bin
