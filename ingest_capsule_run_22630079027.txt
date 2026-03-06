@@ -1,0 +1,68 @@
+TORUS INGESTION CAPSULE
+source_type: github_actions_run
+source_url: https://github.com/eicorporate/quadbit-inference/actions/runs/22630079027/job/65577408165
+run_url: https://github.com/eicorporate/quadbit-inference/actions/runs/22630079027
+workflow: quadbit-offline-ingest
+trigger: push
+run_label: Add Wikileaks to ingestion seeds #7
+status: success
+total_duration: 3h 7m 52s
+parallel_ingest_jobs: 12
+
+JOB (TARGET): ingest (8)
+job_url: https://github.com/eicorporate/quadbit-inference/actions/runs/22630079027/job/65577408165
+job_status: succeeded
+job_duration: 2h 20m 7s
+steps:
+- Set up job: 1s
+- Checkout: 1s
+- Setup Python: 0s
+- Install deps: 2s
+- Prepare shard inputs: 0s
+- Run offline ingest (shard 8): 2h 19m 56s
+- Upload shard artifact: 2s
+
+WORKFLOW CONFIG SNAPSHOT
+workflow_file_url: https://github.com/eicorporate/quadbit-inference/actions/runs/22630079027/workflow
+matrix_shards: [0..11]
+default_shard_total: 12
+default_shard_size: 800
+default_max_depth: 3
+default_max_pages_per_domain: 300
+default_max_total_pages_per_shard: 15000
+crawl_subpages: true
+
+ARTIFACTS (RUN-LEVEL)
+- quadbit-offline-batch-shard-0: 6 MB | sha256:5737d2e511aad5fe7a80b5fe0ce62af15ff0d1a5f7b0bfd64cf4a4a4bfff1221
+- quadbit-offline-batch-shard-1: 5.68 MB | sha256:6b54249333900cdc5c8d43ebcb8246c2cc58dd5cbabddf85b49310bb85684533
+- quadbit-offline-batch-shard-2: 7.22 MB | sha256:a6d8856e443d1770cbade62e63d9186eb005af79589cdb448898735ba3737d87
+- quadbit-offline-batch-shard-3: 5.89 MB | sha256:7cd24ed540d6266dc4104329b49f7f642fd769cd950460c023f0036581d67f6b
+- quadbit-offline-batch-shard-4: 6.21 MB | sha256:c99e12d899b9ef3fbb28a4fb650b272639a02a8c4080597431d1a99185e80912
+- quadbit-offline-batch-shard-5: 5.74 MB | sha256:79d312b78408582cc9e1c18a377a9e98b6bf3f897738bb0122e2b8a71998df25
+- quadbit-offline-batch-shard-6: 9.61 MB | sha256:303cd34213d782bf38a2ef33973bcd3f56bea56fa3e4b57d1ebe7a58d2e3a9c2
+- quadbit-offline-batch-shard-7: 7.3 MB | sha256:015f6e6d02a2f9fbca24648588d8217ae168030e798a8e84220ac759c99f359a
+- quadbit-offline-batch-shard-8: 11.3 MB | sha256:a6d68ca44f7cc58343a0fbcf38e79a714d4624478681385873c6c1fa9eabf830
+- quadbit-offline-batch-shard-9: 7.97 MB | sha256:052e3af34083161a62d1102793539377e613d1eadbd20f38f4805a45e62fb0c0
+- quadbit-offline-batch-shard-10: 5.34 MB | sha256:81b0ece356c66d2807821e9ed5626182bf2fc919f2328a87d808f7f79cfe41d5
+- quadbit-offline-batch-shard-11: 4.44 MB | sha256:c4bf3345f362baac36acb32635c9130676b2df15232da37241ef49f5cb1f10bc
+- quadbit-offline-merge-summary: 203 Bytes | sha256:aaafb3202c48a17fd6eaec06994a21eca0949880164bdea150f1d4760403bf11
+
+RUNTIME (USAGE PAGE)
+- ingest (0): 52m 48s
+- ingest (1): 42m 43s
+- ingest (2): 41m 41s
+- ingest (3): 48m 4s
+- ingest (4): 30m 13s
+- ingest (5): 43m 36s
+- ingest (6): 53m 17s
+- ingest (7): 36m 16s
+- ingest (8): 2h 20m 7s
+- ingest (9): 1h 2m 39s
+- ingest (10): 32m 12s
+- ingest (11): 20m 42s
+- merge-manifests: 5s
+- total linux runtime: 10h 4m 23s
+
+NOTES
+- Public pages show summary/metadata/artifacts; raw step logs require sign-in.
+- This capsule is normalized for torus math-store ingestion.

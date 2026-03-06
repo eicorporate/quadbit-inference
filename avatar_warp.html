@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Avatar</title>
+<style>
+  html,body{margin:0;padding:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;}
+  canvas{image-rendering:auto;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const IMG_SRC='avatar.png';
+const GRID=12;
+const EYE_LEFT ={cx:0.35,cy:0.38,rx:0.08,ry:0.05};
+const EYE_RIGHT={cx:0.65,cy:0.38,rx:0.08,ry:0.05};
+const MOUTH    ={cx:0.50,cy:0.62,rx:0.14,ry:0.08};
+const MAX_BLINK=6;
+const MAX_MOUTH=10;
+const HEAD_ROT=0.01;
+const HEAD_TX=2;
+const HEAD_TY=1;
+const img=new Image();
+img.src=IMG_SRC;
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+let vertsBase=[],verts=[],tris=[];
+let eyeLIdx=new Set(),eyeRIdx=new Set(),mouthIdx=new Set();
+let audioAmp=0.05,blinkPhase=0,blinkTimer=0,blinkHold=0;
+function buildMesh(w,h){
+  vertsBase=[];tris=[];eyeLIdx.clear();eyeRIdx.clear();mouthIdx.clear();
+  for(let j=0;j<=GRID;j++){
+    for(let i=0;i<=GRID;i++){
+      const x=(i/GRID)*w,y=(j/GRID)*h;
+      const nx=x/w,ny=y/h;
+      const idx=vertsBase.length;
+      vertsBase.push({x,y});
+      if(((nx-EYE_LEFT.cx)**2)/(EYE_LEFT.rx**2)+((ny-EYE_LEFT.cy)**2)/(EYE_LEFT.ry**2)<=1) eyeLIdx.add(idx);
+      if(((nx-EYE_RIGHT.cx)**2)/(EYE_RIGHT.rx**2)+((ny-EYE_RIGHT.cy)**2)/(EYE_RIGHT.ry**2)<=1) eyeRIdx.add(idx);
+      if(((nx-MOUTH.cx)**2)/(MOUTH.rx**2)+((ny-MOUTH.cy)**2)/(MOUTH.ry**2)<=1) mouthIdx.add(idx);
+    }
+  }
+  for(let j=0;j<GRID;j++){
+    for(let i=0;i<GRID;i++){
+      const i0=j*(GRID+1)+i,i1=i0+1,i2=i0+(GRID+1),i3=i2+1;
+      tris.push([i0,i1,i3]);
+      tris.push([i0,i3,i2]);
+    }
+  }
+  verts=vertsBase.map(v=>({x:v.x,y:v.y}));
+}
+async function setupAudio(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    const ctxA=new(window.AudioContext||window.webkitAudioContext)();
+    const src=ctxA.createMediaStreamSource(stream);
+    const analyser=ctxA.createAnalyser();
+    analyser.fftSize=1024;
+    src.connect(analyser);
+    const bins=new Uint8Array(analyser.frequencyBinCount);
+    (function tick(){
+      analyser.getByteFrequencyData(bins);
+      let s=0;
+      for(let i=1;i<14&&i<bins.length;i++) s+=bins[i];
+      audioAmp=audioAmp*0.7+(s/(14*255))*0.3;
+      requestAnimationFrame(tick);
+    })();
+  }catch(e){}
+}
+function easeInOut(t){return t<0.5?2*t*t:1-2*(1-t)*(1-t);}
+function animate(tms){
+  const t=tms*0.001;
+  blinkTimer-=1/60;
+  if(blinkTimer<=0){blinkHold=1;blinkTimer=2.5+Math.random()*2;}
+  if(blinkHold>0) blinkHold-=1/30;
+  blinkPhase+=0.016;
+  const blinkRaw=Math.max(0.5+0.5*Math.sin(blinkPhase/1.618+0.3*Math.sin(t*0.7)),blinkHold>0?1:0);
+  const blink=easeInOut(Math.min(1,blinkRaw));
+  const mouthOpen=Math.min(1,Math.max(0,audioAmp*3));
+  const angle=HEAD_ROT*Math.sin(t*0.5);
+  const tx=HEAD_TX*Math.sin(t*0.33);
+  const ty=HEAD_TY*Math.sin(t*0.21);
+  verts=vertsBase.map((v,idx)=>{
+    let x=v.x,y=v.y;
+    if(eyeLIdx.has(idx)||eyeRIdx.has(idx)){
+      const eye=eyeLIdx.has(idx)?EYE_LEFT:EYE_RIGHT;
+      const relY=(v.y/canvas.height-eye.cy)/eye.ry;
+      const dy=MAX_BLINK*blink;
+      y+=relY<0?dy*(-relY):-dy*relY;
+    }
+    if(mouthIdx.has(idx)){
+      const relY=v.y/canvas.height-MOUTH.cy;
+      const dy=MAX_MOUTH*mouthOpen;
+      y+=relY<0?dy*(-relY*0.5):dy*(relY*1.0);
+    }
+    return{x,y};
+  });
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  ctx.translate(canvas.width/2,canvas.height/2);
+  ctx.rotate(angle);
+  ctx.translate(-canvas.width/2+tx,-canvas.height/2+ty);
+  for(const tri of tris){
+    const[a,b,c]=tri.map(i=>verts[i]);
+    const[A,B,C]=tri.map(i=>vertsBase[i]);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.closePath();
+    ctx.clip();
+    const denom=(B.x-C.x)*(A.y-C.y)+(C.y-B.y)*(A.x-C.x);
+    if(Math.abs(denom)<1e-5){ctx.restore();continue;}
+    const m11=((b.x-c.x)*(A.y-C.y)+(c.y-b.y)*(A.x-C.x))/denom;
+    const m12=((B.x-C.x)*(a.x-c.x)+(C.x-B.x)*(a.y-c.y))/denom;
+    const m21=((b.y-c.y)*(A.y-C.y)+(c.x-b.x)*(A.x-C.x))/denom;
+    const m22=((B.y-C.y)*(a.x-c.x)+(C.y-B.y)*(a.y-c.y))/denom;
+    ctx.transform(m11,m21,m12,m22,a.x-m11*A.x-m12*A.y,a.y-m21*A.x-m22*A.y);
+    ctx.drawImage(img,0,0);
+    ctx.restore();
+  }
+  ctx.restore();
+  requestAnimationFrame(animate);
+}
+img.onload=()=>{
+  canvas.width=img.naturalWidth;
+  canvas.height=img.naturalHeight;
+  buildMesh(canvas.width,canvas.height);
+  setupAudio().then(()=>requestAnimationFrame(animate));
+};
+</script>
+</body>
+</html>
