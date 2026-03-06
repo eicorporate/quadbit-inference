@@ -316,3 +316,73 @@ https://github.com/togethercomputer/RedPajama-Data
 https://huggingface.co/datasets/togethercomputer/RedPajama-Data-V2
 https://huggingface.co/common-pile
 https://laion.ai
+
+# AI PLATFORMS & DOCUMENTATION
+https://platform.openai.com/docs
+https://docs.anthropic.com
+https://openai.com/research
+https://openai.com/blog
+https://anthropic.com/research
+https://anthropic.com/news
+https://kimi.ai
+https://grok.x.ai
+https://github.com/features/copilot
+https://code.visualstudio.com/docs
+https://code.visualstudio.com/api
+https://docs.aws.amazon.com
+https://aws.amazon.com/blogs
+https://huggingface.co/docs
+https://huggingface.co/blog
+https://ai.meta.com/research
+https://ai.google/research
+https://deepmind.google/research
+
+# SOCIAL MEDIA / REAL-TIME KNOWLEDGE
+https://x.com
+https://nitter.net
+https://web.archive.org
+https://archive.org
+
+# HONEST REAL NEWS - WIRE SERVICES & PUBLIC BROADCASTING
+https://apnews.com
+https://reuters.com
+https://bbc.com/news
+https://bbc.co.uk/news
+https://npr.org
+https://pbs.org/newshour
+https://c-span.org
+https://propublica.org
+https://theintercept.com
+https://democracynow.org
+https://aljazeera.com
+https://theguardian.com
+https://foreignaffairs.com
+https://theatlantic.com
+
+# INVESTIGATIVE & ACCOUNTABILITY JOURNALISM
+https://icij.org
+https://revealnews.org
+https://occrp.org
+https://bellingcat.com
+https://factcheck.org
+https://politifact.com
+https://snopes.com
+https://mediabiasfactcheck.com
+
+# FINANCIAL & ECONOMIC NEWS
+https://sec.gov/edgar
+https://federalreserve.gov
+https://bls.gov
+https://census.gov/data
+https://fred.stlouisfed.org
+https://imf.org
+https://worldbank.org/en/research
+
+# SCIENCE & ACADEMIC
+https://arxiv.org
+https://scholar.google.com
+https://nature.com
+https://sciencemag.org
+https://plos.org
+https://biorxiv.org
+https://medrxiv.org

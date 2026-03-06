@@ -1,11 +1,11 @@
-name: MAX INGEST 6-HR - archives.gov
+name: MAX INGEST 6-HR - worldbank.org
 
 on:
   push:
     branches:
       - main
     paths:
-      - ".github/workflows/ingest_archives_gov.yml"
+      - ".github/workflows/ingest_worldbank_org.yml"
   workflow_dispatch:
   schedule:
     - cron: '30 4 * * *'
@@ -27,15 +27,17 @@ jobs:
       - name: Install Dependencies
         run: pip install requests beautifulsoup4
 
-      - name: 6-Hour Deep Crawl & Ingest to Torus (archives.gov)
+      - name: 6-Hour Deep Crawl & Ingest to Torus (worldbank.org)
         run: |
-          echo "Starting maximum depth crawl of archives.gov"
+          echo "Starting maximum depth crawl of worldbank.org"
           echo "Timeout set to 5 hours 55 minutes to allow graceful exit..."
-          mkdir -p output && echo "https://archives.gov" > target.txt && timeout 21300 python3 tools/offline_ingest.py --input target.txt --out output/ingest_archives.gov.bin --crawl-subpages --max-depth 20 --max-total-pages 1000000 --max-pages-per-domain 500000 || true
+          mkdir -p output
+          echo "https://worldbank.org/en/research" > target.txt
+          timeout 21300 python3 tools/offline_ingest.py --input target.txt --out output/ingest_worldbank_org.bin --crawl-subpages --max-depth 20 --max-total-pages 1000000 --max-pages-per-domain 500000 || true
           
       - name: Upload Ingest Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ingest-data-archives.gov
+          name: ingest-data-worldbank_org
           path: output/*.bin
           if-no-files-found: ignore
