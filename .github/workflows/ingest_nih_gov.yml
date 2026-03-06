@@ -29,7 +29,7 @@ jobs:
         run: |
           echo "Starting maximum depth crawl of nih.gov"
           echo "Timeout set to 5 hours 55 minutes to allow graceful exit..."
-          timeout 21300 python3 tools/offline_ingest.py --target "nih.gov" --mode max_depth || true
+          mkdir -p output && echo "https://nih.gov" > target.txt && timeout 21300 python3 tools/offline_ingest.py --input target.txt --out output/ingest_nih.gov.bin --crawl-subpages --max-depth 20 --max-total-pages 1000000 --max-pages-per-domain 500000 || true
           
       - name: Upload Ingest Artifacts
         uses: actions/upload-artifact@v4
