@@ -1,0 +1,43 @@
+name: MAX INGEST 6-HR - courtlistener.com
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ingest_courtlistener_com.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: 6-Hour Deep Crawl & Ingest to Torus (courtlistener.com)
+        run: |
+          echo "Starting maximum depth crawl of courtlistener.com"
+          echo "Timeout set to 5 hours 55 minutes to allow graceful exit..."
+          mkdir -p output
+          echo "https://courtlistener.com" > target.txt
+          timeout 21300 python3 tools/offline_ingest.py --input target.txt --out output/ingest_courtlistener_com.bin --crawl-subpages --max-depth 20 --max-total-pages 1000000 --max-pages-per-domain 500000 || true
+          
+      - name: Upload Ingest Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ingest-data-courtlistener_com
+          path: output/*.bin
+          if-no-files-found: ignore
